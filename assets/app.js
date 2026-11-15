@@ -97,12 +97,6 @@
     return `<a class="tv-btn" href="${enquireHref(item)}">Enquire</a>`;
   }
 
-  function photo(item, cls) {
-    return item.photos.length
-      ? `<img class="${cls}" src="${esc(item.photos[0])}" alt="${esc(item.title)}" loading="lazy">`
-      : `<div class="${cls} nophoto" aria-hidden="true"><span>NO PHOTO YET</span></div>`;
-  }
-
   function row(item) {
     const flag = item.status === "reserved" ? ` <span class="flag">RSVD</span>` : "";
     return `
@@ -183,11 +177,13 @@
       ["Qty", item.quantity > 1 ? `${item.quantity} available` : ""], ["Shipping", item.shipping],
       ["Category", item.category],
     ].filter(([, v]) => v);
+    // Items without photos get a single-column layout instead of a placeholder.
+    el.classList.toggle("no-media", !item.photos.length);
     el.innerHTML = `
-      <div class="item-media">
-        <div class="frame">${photo(item, "item-img")}</div>
+      ${item.photos.length ? `<div class="item-media">
+        <div class="frame"><img class="item-img" src="${esc(item.photos[0])}" alt="${esc(item.title)}"></div>
         ${item.photos.length > 1 ? `<div class="thumbs">${item.photos.map((p) => `<img src="${esc(p)}" alt="" loading="lazy">`).join("")}</div>` : ""}
-      </div>
+      </div>` : ""}
       <div class="item-info">
         <h1>${esc(item.title)}</h1>
         <div class="big-price">${money(item.price)}</div>
@@ -198,6 +194,22 @@
     el.querySelector(".thumbs")?.addEventListener("click", (e) => {
       if (e.target.tagName === "IMG") el.querySelector(".item-img").src = e.target.src;
     });
+  }
+
+  // Splash quip: the sheet's "quips" tab (one per row, header "quip") plus our own list.
+  async function showQuip() {
+    const el = document.getElementById("quip");
+    if (!el) return;
+    const lines = [];
+    try {
+      // gviz returns the first tab when "quips" doesn't exist, so check the header.
+      const rows = parseCsv(await fetchText(`https://docs.google.com/spreadsheets/d/${cfg.sheetId}/gviz/tq?tqx=out:csv&sheet=quips`));
+      if (rows.length && "quip" in rows[0]) lines.push(...rows.map((r) => r.quip).filter(Boolean));
+    } catch (err) { /* no quips tab yet */ }
+    try {
+      lines.push(...(await fetchText("data/quips.txt")).split("\n").map((l) => l.trim()).filter(Boolean));
+    } catch (err) { /* built-in list missing */ }
+    if (lines.length) el.textContent = lines[Math.floor(Math.random() * lines.length)];
   }
 
   function fillContact() {
@@ -219,6 +231,7 @@
   const page = document.body.dataset.page;
   fillContact();
   clock();
+  showQuip();
   if (page === "shop") renderShop();
   if (page === "item") renderItem();
 
