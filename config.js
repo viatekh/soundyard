@@ -9,5 +9,7 @@ window.SOUNDYARD = {
   locale: "en-GB",
   // TODO: set before going live
   contactEmail: "hello@example.com",
-  location: "UK",
+  location: "Hackney Wick, London",
+  // Shown on items whose shipping cell is empty.
+  defaultShipping: "Collection from Hackney Wick, London. Delivery quoted on request.",
 };

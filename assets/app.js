@@ -45,9 +45,10 @@
     };
   }
 
-  // Sold, hidden and example rows never show; neither does anything out of stock.
+  // Sold, hidden and example rows never show; neither does anything out of stock
+  // or a row that's been given an ID but not filled in yet.
   function isListed(item) {
-    return ["available", "reserved"].includes(item.status) && item.quantity > 0 && item.id;
+    return ["available", "reserved"].includes(item.status) && item.quantity > 0 && item.id && item.title;
   }
 
   async function fetchText(url) {
@@ -103,7 +104,7 @@
       <tr tabindex="0" data-href="${itemHref(item)}">
         <td class="c-id">${esc(item.id)}</td>
         <td class="c-title"><a href="${itemHref(item)}">${esc(item.title)}</a>${flag}
-          <span class="c-sub">${esc(item.category)}${item.condition ? ` · ${esc(item.condition)}` : ""}</span></td>
+          <span class="c-sub">${[item.category, item.condition].filter(Boolean).map(esc).join(" · ")}</span></td>
         <td class="c-cat">${esc(item.category)}</td>
         <td class="c-qty">${item.quantity}</td>
         <td class="c-price">${money(item.price)}</td>
@@ -174,7 +175,7 @@
     document.getElementById("item-title").textContent = `${item.id}: ${item.title}`;
     const specs = [
       ["Brand", item.brand], ["Model", item.model], ["Condition", item.condition],
-      ["Qty", item.quantity > 1 ? `${item.quantity} available` : ""], ["Shipping", item.shipping],
+      ["Qty", item.quantity > 1 ? `${item.quantity} available` : ""], ["Shipping", item.shipping || cfg.defaultShipping],
       ["Category", item.category],
     ].filter(([, v]) => v);
     // Items without photos get a single-column layout instead of a placeholder.
