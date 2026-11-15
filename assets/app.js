@@ -45,11 +45,11 @@
     };
   }
 
-  // Sold, hidden and example rows never show; neither does anything out of stock
-  // or a row that's been given an ID but not filled in yet.
-  function isListed(item) {
-    return ["available", "reserved"].includes(item.status) && item.quantity > 0 && item.id && item.title;
-  }
+  // A row needs an ID and a title before it shows anywhere (example rows never do).
+  const isReal = (item) => item.id && item.title && item.status !== "example";
+  // For sale: available or reserved, and in stock.
+  const isListed = (item) => isReal(item) && ["available", "reserved"].includes(item.status) && item.quantity > 0;
+  const isSold = (item) => isReal(item) && item.status === "sold";
 
   async function fetchText(url) {
     const res = await fetch(url, { cache: "no-store" });
@@ -62,17 +62,37 @@
     return text;
   }
 
-  async function loadStock() {
-    const sheetUrl = `https://docs.google.com/spreadsheets/d/${cfg.sheetId}/gviz/tq?tqx=out:csv`;
-    let text;
-    try {
-      text = await fetchText(sheetUrl);
-    } catch (err) {
-      console.warn("Soundyard: sheet unavailable, using fallback CSV.", err);
-      text = await fetchText(cfg.fallbackCsv);
-    }
-    return parseCsv(text).map(normalise).filter(isListed);
+  const tabUrl = (tab) =>
+    `https://docs.google.com/spreadsheets/d/${cfg.sheetId}/gviz/tq?tqx=out:csv${tab ? `&sheet=${encodeURIComponent(tab)}` : ""}`;
+
+  // Every real row from the stock tab, listed or sold.
+  let itemsPromise;
+  function loadItems() {
+    itemsPromise ??= (async () => {
+      let text;
+      try {
+        text = await fetchText(tabUrl());
+      } catch (err) {
+        console.warn("Soundyard: sheet unavailable, using fallback CSV.", err);
+        text = await fetchText(cfg.fallbackCsv);
+      }
+      return parseCsv(text).map(normalise).filter(isReal);
+    })();
+    return itemsPromise;
   }
+
+  // Rows from another tab. gviz returns the first tab when the named one doesn't
+  // exist, so the tab only counts if it has the expected header column.
+  async function loadTab(tab, column) {
+    try {
+      const rows = parseCsv(await fetchText(tabUrl(tab)));
+      return rows.length && column in rows[0] ? rows : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  const byNewest = (a, b) => (b.date_added || "").localeCompare(a.date_added || "");
 
   const money = (n) =>
     n === null ? "P.O.A."
@@ -88,9 +108,10 @@
     return `mailto:${cfg.contactEmail}?subject=${encodeURIComponent(subject)}`;
   }
 
-  const canBuy = (item) => item.status !== "reserved" && item.paypal_link && item.price !== null;
+  const canBuy = (item) => isListed(item) && item.status !== "reserved" && item.paypal_link && item.price !== null;
 
   function buyButton(item) {
+    if (item.status === "sold") return `<span class="tv-btn off">Sold</span>`;
     if (item.status === "reserved") return `<span class="tv-btn off">Reserved</span>`;
     if (canBuy(item)) {
       return `<a class="tv-btn go" href="${esc(item.paypal_link)}" target="_blank" rel="noopener">Buy with PayPal</a>`;
@@ -131,13 +152,18 @@
     const filters = document.getElementById("filters");
     const status = document.getElementById("status-count");
     const ticker = document.getElementById("ticker");
-    const stock = await loadStock();
+    const items = await loadItems();
+    const stock = items.filter(isListed);
+    const sold = items.filter(isSold).sort(byNewest);
     const categories = [...new Set(stock.map((i) => i.category).filter(Boolean))].sort();
     let active = new URLSearchParams(location.search).get("cat") || "All";
 
-    if (ticker && stock.length) {
-      const newest = [...stock].sort((a, b) => (b.date_added || "").localeCompare(a.date_added || "")).slice(0, 6);
-      const text = newest.map((i) => `NEW IN: ${esc(i.title)} — ${money(i.price)}`).join(" &nbsp;★&nbsp; ");
+    const news = [
+      ...[...stock].sort(byNewest).slice(0, 6).map((i) => `NEW IN: ${esc(i.title)} — ${money(i.price)}`),
+      ...sold.slice(0, 3).map((i) => `JUST SOLD: ${esc(i.title)}`),
+    ];
+    if (ticker && news.length) {
+      const text = news.join(" &nbsp;★&nbsp; ");
       ticker.innerHTML = `<span>${text} &nbsp;★&nbsp; </span><span aria-hidden="true">${text} &nbsp;★&nbsp; </span>`;
     }
 
@@ -161,12 +187,27 @@
     });
     keyboardNav(tbody);
     draw();
+
+    const soldWin = document.getElementById("sold");
+    if (soldWin && sold.length) {
+      soldWin.hidden = false;
+      const soldRows = document.getElementById("sold-rows");
+      soldRows.innerHTML = sold.map((item) => `
+        <tr tabindex="0" data-href="${itemHref(item)}">
+          <td class="c-id">${esc(item.id)}</td>
+          <td class="c-title"><a href="${itemHref(item)}">${esc(item.title)}</a>
+            <span class="c-sub">${esc(item.category)}</span></td>
+          <td class="c-cat">${esc(item.category)}</td>
+          <td class="c-price"><span class="flag">SOLD</span></td>
+        </tr>`).join("");
+      keyboardNav(soldRows);
+    }
   }
 
   async function renderItem() {
     const el = document.getElementById("item");
     const id = new URLSearchParams(location.search).get("id");
-    const item = (await loadStock()).find((i) => i.id === id);
+    const item = (await loadItems()).find((i) => i.id === id && (isListed(i) || isSold(i)));
     if (!item) {
       el.innerHTML = `<p class="err">ERROR 404: item not found. It may have sold. <a href="index.html">Back to the yard</a></p>`;
       return;
@@ -175,7 +216,7 @@
     document.getElementById("item-title").textContent = `${item.id}: ${item.title}`;
     const specs = [
       ["Brand", item.brand], ["Model", item.model], ["Condition", item.condition],
-      ["Qty", item.quantity > 1 ? `${item.quantity} available` : ""], ["Shipping", item.shipping || cfg.defaultShipping],
+      ["Qty", isListed(item) && item.quantity > 1 ? `${item.quantity} available` : ""], ["Shipping", item.shipping || cfg.defaultShipping],
       ["Category", item.category],
     ].filter(([, v]) => v);
     // Items without photos get a single-column layout instead of a placeholder.
@@ -187,7 +228,7 @@
       </div>` : ""}
       <div class="item-info">
         <h1>${esc(item.title)}</h1>
-        <div class="big-price">${money(item.price)}</div>
+        <div class="big-price">${isSold(item) ? "SOLD" : money(item.price)}</div>
         <p class="desc">${esc(item.description)}</p>
         ${specs.length ? `<table class="specs">${specs.map(([k, v]) => `<tr><th>${k}</th><td>${esc(v)}</td></tr>`).join("")}</table>` : ""}
         <div class="actions">${buyButton(item)}${canBuy(item) ? `<a class="tv-btn" href="${enquireHref(item)}">Ask a question</a>` : ""}</div>
@@ -201,16 +242,115 @@
   async function showQuip() {
     const el = document.getElementById("quip");
     if (!el) return;
-    const lines = [];
-    try {
-      // gviz returns the first tab when "quips" doesn't exist, so check the header.
-      const rows = parseCsv(await fetchText(`https://docs.google.com/spreadsheets/d/${cfg.sheetId}/gviz/tq?tqx=out:csv&sheet=quips`));
-      if (rows.length && "quip" in rows[0]) lines.push(...rows.map((r) => r.quip).filter(Boolean));
-    } catch (err) { /* no quips tab yet */ }
+    const lines = (await loadTab("quips", "quip")).map((r) => r.quip).filter(Boolean);
     try {
       lines.push(...(await fetchText("data/quips.txt")).split("\n").map((l) => l.trim()).filter(Boolean));
     } catch (err) { /* built-in list missing */ }
     if (lines.length) el.textContent = lines[Math.floor(Math.random() * lines.length)];
+  }
+
+  // Wanted: the sheet's "wanted" tab, columns item / notes / budget.
+  async function renderWanted() {
+    const el = document.getElementById("wanted");
+    const rows = (await loadTab("wanted", "item")).filter((r) => r.item);
+    el.innerHTML = rows.length
+      ? `<table class="listing static">
+          <thead><tr><th>Item</th><th class="c-cat">Notes</th><th class="c-price">Budget</th></tr></thead>
+          <tbody>${rows.map((r) => `<tr><td class="c-title"><strong>${esc(r.item)}</strong>
+            <span class="c-sub">${esc(r.notes)}</span></td><td class="c-cat">${esc(r.notes)}</td>
+            <td class="c-price">${esc(r.budget) || "ask"}</td></tr>`).join("")}</tbody></table>`
+      : `<p class="dim">Nothing on the list right now. Got something good anyway? Tell us.</p>`;
+  }
+
+  // Posts straight to a Google Form so the form can live on our own page.
+  // Google doesn't send CORS headers back, so the reply is opaque: no error means sent.
+  async function postForm(form, values) {
+    const body = new URLSearchParams();
+    for (const [key, entry] of Object.entries(form.fields)) body.append(entry, values[key] || "");
+    await fetch(form.action, { method: "POST", mode: "no-cors", body });
+  }
+
+  const formReady = (form) => form && form.action && form.fields && Object.values(form.fields).every(Boolean);
+
+  // Guestbook: signed through a Google Form whose responses land in the "guestbook" tab.
+  // Type anything in a "hide" column to take a message down.
+  async function renderGuestbook() {
+    const list = document.getElementById("entries");
+    const form = document.getElementById("sign");
+    const draw = (rows) => {
+      list.innerHTML = rows.length
+        ? rows.map((r) => `
+          <article class="entry">
+            <header><strong>${esc(r.name) || "anon"}</strong>${r.where ? ` <span class="dim">from ${esc(r.where)}</span>` : ""}
+              <span class="dim when">${esc(r.timestamp)}</span></header>
+            <p>${esc(r.message)}</p>
+          </article>`).join("")
+        : `<p class="dim">No entries yet. Be the first. First post!</p>`;
+    };
+    const rows = (await loadTab("guestbook", "message"))
+      .map((r) => ({ ...r, where: r["where from"] || r.where }))
+      .filter((r) => r.message && !r.hide)
+      .reverse();
+    draw(rows);
+
+    if (!formReady(cfg.guestbookForm)) {
+      form.innerHTML = `<p class="dim">The guestbook pen is out of ink. Signing opens soon.</p>`;
+      return;
+    }
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const values = Object.fromEntries(new FormData(form));
+      if (!values.message.trim()) return;
+      form.querySelector("button").disabled = true;
+      try {
+        await postForm(cfg.guestbookForm, values);
+        rows.unshift({ ...values, timestamp: "just now" });
+        draw(rows);
+        form.innerHTML = `<p><strong>Signed!</strong> Cheers. Your message is up.</p>`;
+      } catch (err) {
+        form.querySelector("button").disabled = false;
+        form.insertAdjacentHTML("beforeend", `<p class="err">Couldn't send that. Try again?</p>`);
+      }
+    });
+  }
+
+  // New-stock alerts: an email box posting to a Google Form whose responses stay
+  // private (NOT in the public stock spreadsheet).
+  function initAlerts() {
+    const form = document.getElementById("alerts");
+    if (!form || !formReady(cfg.alertsForm)) return;
+    form.hidden = false;
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = form.email.value.trim();
+      if (!email) return;
+      form.querySelector("button").disabled = true;
+      try {
+        await postForm(cfg.alertsForm, { email });
+        form.innerHTML = `<p><strong>You're on the list.</strong> We'll email when good stuff lands.</p>`;
+      } catch (err) {
+        form.querySelector("button").disabled = false;
+      }
+    });
+  }
+
+  // 1080×1080 social image for one item (tools/make-cards.sh screenshots it).
+  async function renderCard() {
+    const id = new URLSearchParams(location.search).get("id");
+    const item = (await loadItems()).find((i) => i.id === id);
+    const el = document.getElementById("card");
+    if (!item) { el.textContent = `No item ${id}`; return; }
+    el.classList.toggle("has-photo", item.photos.length > 0);
+    el.innerHTML = `
+      ${item.photos.length ? `<img class="card-photo" src="${esc(item.photos[0])}" alt="">` : ""}
+      <div class="card-text">
+        <div class="card-kicker">${isSold(item) ? "JUST SOLD" : "NEW IN"} · ${esc(item.id)}</div>
+        <h1>${esc(item.title)}</h1>
+        <div class="card-price">${isSold(item) ? "SOLD" : money(item.price)}</div>
+        ${!item.photos.length && item.description ? `<p class="card-desc">${esc(item.description.length > 180 ? item.description.slice(0, 177) + "…" : item.description)}</p>` : ""}
+        ${item.condition ? `<div class="card-meta">${esc(item.condition)}${item.category ? ` · ${esc(item.category)}` : ""}</div>` : ""}
+      </div>`;
+    document.body.dataset.ready = "1";
   }
 
   function fillContact() {
@@ -219,6 +359,10 @@
       a.textContent = cfg.contactEmail;
     });
     document.querySelectorAll("[data-location]").forEach((n) => (n.textContent = cfg.location));
+    document.querySelectorAll("[data-email-subject]").forEach((a) => {
+      a.href = `mailto:${cfg.contactEmail}?subject=${encodeURIComponent(a.dataset.emailSubject)}`;
+    });
+    document.querySelectorAll("[data-site]").forEach((n) => (n.textContent = cfg.siteUrl));
   }
 
   function clock() {
@@ -233,8 +377,11 @@
   fillContact();
   clock();
   showQuip();
-  if (page === "shop") renderShop();
+  if (page === "shop") { renderShop(); initAlerts(); }
   if (page === "item") renderItem();
+  if (page === "wanted") renderWanted();
+  if (page === "guestbook") renderGuestbook();
+  if (page === "card") renderCard();
 
-  window.SoundyardTest = { parseCsv, normalise, isListed, imageUrl };
+  window.SoundyardTest = { parseCsv, normalise, isListed, isSold, imageUrl };
 })();

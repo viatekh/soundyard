@@ -15,6 +15,8 @@
   <span class="sys">≡</span>
   <a href="index.html" aria-current="page">Shop</a>
   <a href="about.html">About</a>
+  <a href="wanted.html">Wanted</a>
+  <a href="guestbook.html">Guestbook</a>
   <a href="contact.html">Contact</a>
   <span class="clock" id="clock"></span>
 </nav>
@@ -35,6 +37,19 @@
       <p class="hint"><kbd>Tab</kbd> into the list, <kbd>↑</kbd><kbd>↓</kbd> to move, <kbd>Enter</kbd> to open.</p>
     </div>
   </main>
+  <section class="win" id="sold" hidden>
+    <div class="win-title">SOLD.LOG</div>
+    <div class="win-in">
+      <table class="listing sold">
+        <thead><tr><th class="c-id">ID</th><th>Item</th><th class="c-cat">Category</th><th class="c-price">Status</th></tr></thead>
+        <tbody id="sold-rows"></tbody>
+      </table>
+    </div>
+  </section>
+  <form class="alerts" id="alerts" hidden>
+    <label for="a-email">NEW STOCK ALERTS<span class="dim"> // one email when good stuff lands</span></label>
+    <div class="alerts-row"><input id="a-email" name="email" type="email" placeholder="you@example.com" required><button class="tv-btn go" type="submit">Subscribe</button></div>
+  </form>
   <div class="badges" aria-hidden="true">
     <span class="badge b1">PayPal<br>accepted</span>
     <span class="badge b2">100% used<br>kit</span>
