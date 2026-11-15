@@ -1,0 +1,4 @@
+id,status,title,category,brand,model,condition,price,quantity,description,photo_urls,paypal_link,shipping,date_added,notes_private
+K001,example,EXAMPLE - 18in bass bin (delete this row),Speakers,Brand,Model,Used - good,250,1,"Short description buyers will see. Mention size, weight, any wear.",https://example.com/photo1.jpg https://example.com/photo2.jpg,https://www.paypal.com/ncp/payment/XXXX,Collection only,2026-11-15,Not shown on the site
+K002,available,3U extra-deep shockmount rack,Racks & Cases,,,Used,,2,"3U shockmount rack case, extra deep.",,,,2026-11-15,
+K003,available,Behringer Ultradrive,Processing,Behringer,Ultradrive,Used,,1,"Behringer Ultradrive digital loudspeaker management system / crossover.",,,,2026-11-15,Confirm model (DCX2496?)

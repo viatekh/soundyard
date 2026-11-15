@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soundyard · Used sound system kit</title>
+<meta name="description" content="Soundyard: used sound system kit for sale. Speakers, amps, processing, racks and cables.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body data-page="shop">
+<nav class="menubar">
+  <span class="sys">≡</span>
+  <a href="index.html" aria-current="page">Shop</a>
+  <a href="about.html">About</a>
+  <a href="contact.html">Contact</a>
+  <span class="clock" id="clock"></span>
+</nav>
+<div class="desk">
+  <header class="masthead">
+    <a class="logo" href="index.html">SOUNDYARD</a>
+    <div class="tagline">used sound system kit // buy it, rig it, run it<span class="cursor"></span></div>
+  </header>
+  <div class="ticker" id="ticker"></div>
+  <main class="win">
+    <div class="win-title">STOCK.DAT</div>
+    <div class="win-in">
+      <div class="tabs" id="filters" role="toolbar" aria-label="Filter by category"></div>
+      <table class="listing">
+        <thead><tr><th class="c-id">ID</th><th>Item</th><th class="c-cat">Category</th><th class="c-qty">Qty</th><th class="c-price">Price</th></tr></thead>
+        <tbody id="rows"><tr class="empty"><td colspan="5">Loading stock…</td></tr></tbody>
+      </table>
+      <p class="hint"><kbd>Tab</kbd> into the list, <kbd>↑</kbd><kbd>↓</kbd> to move, <kbd>Enter</kbd> to open.</p>
+    </div>
+  </main>
+  <div class="badges" aria-hidden="true">
+    <span class="badge b1">PayPal<br>accepted</span>
+    <span class="badge b2">100% used<br>kit</span>
+    <span class="badge b3">sound<br>system</span>
+    <span class="badge b4">no cookies<br>no tracking</span>
+  </div>
+  <p class="small-print">best viewed at any resolution · <a data-email href="#">email</a></p>
+</div>
+<footer class="statusbar">
+  <span class="keys"><b>↑↓</b> Select</span><span class="keys"><b>Enter</b> Open</span><span id="status-count">0 items</span>
+  <span class="right">SOUNDYARD v1.0</span>
+</footer>
+<script src="config.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
