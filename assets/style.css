@@ -277,3 +277,11 @@ button.tv-btn:disabled { background: var(--line); color: var(--dim); }
   .alerts { margin-right: 8px; }
 }
 .card-desc { font: 32px/1.35 var(--mono); margin: 22px 0 0; }
+
+/* ── Link back to Psion Systems ─────────────────────────────── */
+.psion {
+  display: block; width: fit-content; max-width: 100%; margin: 0 auto 18px;
+  font: 20px/1.2 var(--pixel); text-align: center; text-decoration: none;
+  color: var(--fg); border: 2px solid var(--fg); padding: 8px 14px;
+}
+.psion:hover { background: var(--fg); color: var(--paper); }
