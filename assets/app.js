@@ -4,7 +4,7 @@
   const cfg = window.SOUNDYARD;
 
   // RFC 4180-ish CSV parser: handles quoted fields, escaped quotes and newlines in quotes.
-  function parseCsv(text) {
+  function parseRows(text) {
     const rows = [];
     let row = [], field = "", inQuotes = false;
     for (let i = 0; i < text.length; i++) {
@@ -21,6 +21,11 @@
       } else field += c;
     }
     if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  function parseCsv(text) {
+    const rows = parseRows(text);
     const header = (rows.shift() || []).map((h) => h.trim().toLowerCase());
     return rows
       .filter((r) => r.some((v) => v.trim() !== ""))
@@ -87,6 +92,18 @@
     try {
       const rows = parseCsv(await fetchText(tabUrl(tab)));
       return rows.length && column in rows[0] ? rows : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  // First column of a one-column tab, header optional. A missing tab comes back as
+  // the stock tab (first cell "id"), which counts as empty.
+  async function loadList(tab, header) {
+    try {
+      const rows = parseRows(await fetchText(`${tabUrl(tab)}&headers=0`));
+      if ((rows[0]?.[0] || "").trim().toLowerCase() === "id") return [];
+      return rows.map((r) => (r[0] || "").trim()).filter((v) => v && v.toLowerCase() !== header);
     } catch (err) {
       return [];
     }
@@ -238,14 +255,15 @@
     });
   }
 
-  // Splash quip: the sheet's "quips" tab (one per row, header "quip") plus our own list.
+  // Splash quip: the sheet's "quips" tab (one per row in column A, "quip" header optional) plus our own list.
   async function showQuip() {
     const el = document.getElementById("quip");
     if (!el) return;
-    const lines = (await loadTab("quips", "quip")).map((r) => r.quip).filter(Boolean);
+    let lines = await loadList("quips", "quip");
     try {
       lines.push(...(await fetchText("data/quips.txt")).split("\n").map((l) => l.trim()).filter(Boolean));
     } catch (err) { /* built-in list missing */ }
+    lines = [...new Set(lines)];
     if (lines.length) el.textContent = lines[Math.floor(Math.random() * lines.length)];
   }
 

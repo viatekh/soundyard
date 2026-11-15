@@ -181,6 +181,14 @@ img { max-width: 100%; display: block; }
 .prose p { margin: 0 0 12px; }
 .prose strong { color: var(--strong); }
 
+/* ── Pixel rig: 1-bit speaker GIFs on a floor line ───────────── */
+.rig {
+  display: flex; align-items: flex-end; justify-content: center; gap: 12px;
+  margin: 16px 0 4px; border-bottom: 3px solid currentColor; overflow: hidden;
+}
+.rig img { image-rendering: pixelated; height: auto; max-width: 18%; }
+.rig img:nth-child(3) { max-width: 26%; }
+
 /* ── Footer: 88×31 badges ───────────────────────────────────── */
 .badges { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
 .badge {
