@@ -259,10 +259,13 @@
   async function showQuip() {
     const el = document.getElementById("quip");
     if (!el) return;
+    // The sheet is the list; data/quips.txt is only a backup for when it can't be read.
     let lines = await loadList("quips", "quip");
-    try {
-      lines.push(...(await fetchText("data/quips.txt")).split("\n").map((l) => l.trim()).filter(Boolean));
-    } catch (err) { /* built-in list missing */ }
+    if (!lines.length) {
+      try {
+        lines = (await fetchText("data/quips.txt")).split("\n").map((l) => l.trim()).filter(Boolean);
+      } catch (err) { /* backup list missing */ }
+    }
     lines = [...new Set(lines)];
     if (lines.length) el.textContent = lines[Math.floor(Math.random() * lines.length)];
   }
