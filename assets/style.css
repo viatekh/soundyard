@@ -174,32 +174,27 @@ img { max-width: 100%; display: block; }
 .tv-btn.off::before, .tv-btn.off::after { display: none; }
 
 /* ── Text pages ─────────────────────────────────────────────── */
-.prose { max-width: 66ch; }
+/* .prose sits on the window's inner box, so cap the text, not the box */
+.prose > * { max-width: 66ch; }
 .prose h2 { font: 26px/1 var(--pixel); color: var(--fg); margin: 26px 0 6px; text-transform: uppercase; }
 .prose h2:first-child { margin-top: 0; }
 .prose h2::before { content: "> "; color: var(--dim); }
 .prose p { margin: 0 0 12px; }
 .prose strong { color: var(--strong); }
 
-/* ── Pixel rig: 1-bit speaker GIFs on a floor line ───────────── */
-.rig {
-  display: flex; align-items: flex-end; justify-content: center; gap: 12px;
-  margin: 16px 0 4px; border-bottom: 3px solid currentColor; overflow: hidden;
-}
-.rig img { image-rendering: pixelated; height: auto; max-width: 18%; }
-.rig img:nth-child(3) { max-width: 26%; }
-
-/* ── Footer: 88×31 badges ───────────────────────────────────── */
-.badges { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
-.badge {
-  width: 88px; height: 31px; display: grid; place-items: center; text-align: center;
-  font: 12px/1 var(--pixel); text-transform: uppercase; letter-spacing: 0.02em;
-  border: 1px solid var(--fg);
-}
-.b1 { background: var(--paper); color: var(--fg); }
-.b2 { background: var(--fg); color: var(--paper); }
-.b3 { background: var(--hot); color: var(--strong); border-color: var(--hot); }
-.b4 { background: var(--paper); color: var(--dim); border-color: var(--dim); }
+/* ── Footer: pixel-art rig (drawn by tools/pixel_speakers.py) ── */
+.rig { display: flex; flex-wrap: wrap; gap: 18px 26px; justify-content: center; align-items: flex-end; margin: 8px 0 4px; }
+.spk { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.spk svg { display: block; image-rendering: pixelated; }
+.spk .px-ink, .spk .cone { fill: var(--fg); }
+.spk .px-grey { fill: var(--hot); }
+.spk figcaption { font: 16px/1 var(--pixel); text-transform: uppercase; color: var(--dim); }
+.spk .cone { transform-box: fill-box; transform-origin: center; }
+/* everything thumps together at 125 bpm */
+.spk .cone { animation: thump 0.48s ease-out infinite; }
+.spk:hover .cone { animation-duration: 0.24s; }
+@keyframes thump { 0% { transform: scale(1.06); } 35%, 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .spk .cone { animation: none; } }
 .small-print { text-align: center; color: var(--dim); font-size: 12px; margin: 14px 0 0; }
 
 /* ── Status bar (bottom) ────────────────────────────────────── */
