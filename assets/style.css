@@ -57,7 +57,8 @@ img { max-width: 100%; display: block; }
 /* Splash quip, pinned to the logo's corner and pulsing */
 .quip {
   position: absolute; left: 100%; bottom: 70%;
-  width: max-content; max-width: min(300px, 46vw);
+  /* never wider than the gap between the logo and the screen edge */
+  width: max-content; max-width: min(300px, calc(100vw - 100% - 40px));
   font: 22px/1 var(--pixel); color: var(--strong); text-align: center;
   text-shadow: 2px 2px 0 var(--hot), 0 0 4px var(--paper), 0 0 8px var(--paper);
   transform: translateX(6px) rotate(12deg);
@@ -182,19 +183,15 @@ img { max-width: 100%; display: block; }
 .prose p { margin: 0 0 12px; }
 .prose strong { color: var(--strong); }
 
-/* ── Footer: pixel-art rig (drawn by tools/pixel_speakers.py) ── */
-.rig { display: flex; flex-wrap: wrap; gap: 18px 26px; justify-content: center; align-items: flex-end; margin: 8px 0 4px; }
-.spk { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.spk svg { display: block; image-rendering: pixelated; }
-.spk .px-ink, .spk .cone { fill: var(--fg); }
-.spk .px-grey { fill: var(--hot); }
-.spk figcaption { font: 16px/1 var(--pixel); text-transform: uppercase; color: var(--dim); }
-.spk .cone { transform-box: fill-box; transform-origin: center; }
-/* everything thumps together at 125 bpm */
-.spk .cone { animation: thump 0.48s ease-out infinite; }
-.spk:hover .cone { animation-duration: 0.24s; }
-@keyframes thump { 0% { transform: scale(1.06); } 35%, 100% { transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { .spk .cone { animation: none; } }
+/* ── Footer: pixel-art rig (drawn by tools/pixel_speakers.py, dropped in by app.js) ── */
+.rig { display: flex; flex-wrap: wrap; row-gap: 14px; justify-content: center; align-items: flex-end; margin: 8px 0 22px; min-height: 159px; }
+/* each speaker carries its own bit of floor, so a wrapped row still stands on something */
+.rig svg { display: block; flex: none; box-sizing: content-box; width: calc(var(--w) * 3px); height: auto; padding: 0 9px; border-bottom: 3px solid var(--fg); }
+/* the beat frame flashes on every kick: 125 bpm, double time on hover */
+.rig .beat { animation: beat 0.48s steps(1) infinite; }
+.rig svg:hover .beat { animation-duration: 0.24s; }
+@keyframes beat { 0% { opacity: 1; } 30%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .rig .beat { animation: none; opacity: 0; } }
 .small-print { text-align: center; color: var(--dim); font-size: 12px; margin: 14px 0 0; }
 
 /* ── Status bar (bottom) ────────────────────────────────────── */
@@ -215,11 +212,13 @@ img { max-width: 100%; display: block; }
   .c-cat, .listing th.c-cat, .c-qty, .listing th.c-qty, .c-id, .listing th.c-id { display: none; }
   .c-sub { display: block; font-size: 13px; color: var(--dim); }
   .hint { display: none; }
-  .menubar { font-size: 19px; padding: 0 4px; }
+  .menubar { font-size: 19px; padding: 0 4px; overflow-x: auto; white-space: nowrap; }
   .menubar a { padding: 7px 7px; }
   .menubar .clock { display: none; }
   .statusbar .keys { display: none; }
-  .quip { font-size: 18px; max-width: 36vw; bottom: 45%; }
+  .quip { font-size: 18px; bottom: 45%; }
+  .rig { min-height: 107px; }
+  .rig svg { width: calc(var(--w) * 2px); padding: 0 6px; }
 }
 
 /* ── Shared bits ────────────────────────────────────────────── */
@@ -283,8 +282,16 @@ button.tv-btn:disabled { background: var(--line); color: var(--dim); }
 
 /* ── Link back to Psion Systems ─────────────────────────────── */
 .psion {
-  display: block; width: fit-content; max-width: 100%; margin: 0 auto 18px;
+  display: block; width: fit-content; max-width: 100%; margin: 0 auto 14px;
   font: 20px/1.2 var(--pixel); text-align: center; text-decoration: none;
   color: var(--fg); border: 2px solid var(--fg); padding: 8px 14px;
 }
 .psion:hover { background: var(--fg); color: var(--paper); }
+
+/* Phones: no room beside the logo, so the quip sits under it */
+@media (max-width: 480px) {
+  .quip {
+    position: static; width: auto; max-width: none; text-align: left;
+    margin: 12px 0 6px 4px; transform: rotate(3deg); animation: none;
+  }
+}

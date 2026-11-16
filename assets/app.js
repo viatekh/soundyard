@@ -1,5 +1,5 @@
-// Soundyard: loads stock from the Google Sheet (or the local fallback CSV)
-// and renders the shop listing and item pages.
+// Soundyard: loads stock from the Google Sheet and renders the shop, item,
+// wanted and guestbook pages.
 (function () {
   const cfg = window.SOUNDYARD;
 
@@ -46,6 +46,8 @@
       status: (item.status || "available").toLowerCase(),
       quantity: Number.isNaN(qty) ? 1 : qty,
       price: Number.isNaN(price) ? null : price,
+      // the buy button only ever links out to a real web address
+      paypal_link: /^https:\/\//i.test(item.paypal_link || "") ? item.paypal_link : "",
       photos: (item.photo_urls || "").split(/\s+/).filter(Boolean).map(imageUrl),
     };
   }
@@ -73,17 +75,18 @@
   // Every real row from the stock tab, listed or sold.
   let itemsPromise;
   function loadItems() {
-    itemsPromise ??= (async () => {
-      let text;
-      try {
-        text = await fetchText(tabUrl());
-      } catch (err) {
-        console.warn("Soundyard: sheet unavailable, using fallback CSV.", err);
-        text = await fetchText(cfg.fallbackCsv);
-      }
-      return parseCsv(text).map(normalise).filter(isReal);
-    })();
+    itemsPromise ??= fetchText(tabUrl()).then((text) => parseCsv(text).map(normalise).filter(isReal));
     return itemsPromise;
+  }
+
+  // If the sheet can't be read, say so: stale stock could sell something twice.
+  function stockError(err) {
+    console.error("Soundyard: couldn't load the stock sheet.", err);
+    const msg = `Can't load the stock list right now. Refresh in a minute, or <a href="mailto:${cfg.contactEmail}">email us</a>.`;
+    const rows = document.getElementById("rows");
+    if (rows) rows.innerHTML = `<tr class="empty"><td colspan="5">${msg}</td></tr>`;
+    const item = document.getElementById("item");
+    if (item) item.innerHTML = `<p class="err">${msg}</p>`;
   }
 
   // Rows from another tab. gviz returns the first tab when the named one doesn't
@@ -111,9 +114,12 @@
 
   const byNewest = (a, b) => (b.date_added || "").localeCompare(a.date_added || "");
 
+  // Whole pounds show without pence: £250, not £250.00.
   const money = (n) =>
     n === null ? "P.O.A."
-      : new Intl.NumberFormat(cfg.locale, { style: "currency", currency: cfg.currency }).format(n);
+      : new Intl.NumberFormat(cfg.locale, {
+          style: "currency", currency: cfg.currency, minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+        }).format(n);
 
   const esc = (s) =>
     String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -141,7 +147,7 @@
     return `
       <tr tabindex="0" data-href="${itemHref(item)}">
         <td class="c-id">${esc(item.id)}</td>
-        <td class="c-title"><a href="${itemHref(item)}">${esc(item.title)}</a>${flag}
+        <td class="c-title"><a href="${itemHref(item)}" tabindex="-1">${esc(item.title)}</a>${flag}
           <span class="c-sub">${[item.category, item.condition].filter(Boolean).map(esc).join(" · ")}</span></td>
         <td class="c-cat">${esc(item.category)}</td>
         <td class="c-qty">${item.quantity}</td>
@@ -212,7 +218,7 @@
       soldRows.innerHTML = sold.map((item) => `
         <tr tabindex="0" data-href="${itemHref(item)}">
           <td class="c-id">${esc(item.id)}</td>
-          <td class="c-title"><a href="${itemHref(item)}">${esc(item.title)}</a>
+          <td class="c-title"><a href="${itemHref(item)}" tabindex="-1">${esc(item.title)}</a>
             <span class="c-sub">${esc(item.category)}</span></td>
           <td class="c-cat">${esc(item.category)}</td>
           <td class="c-price"><span class="flag">SOLD</span></td>
@@ -255,7 +261,7 @@
     });
   }
 
-  // Splash quip: the sheet's "quips" tab (one per row in column A, "quip" header optional) plus our own list.
+  // Splash quip: a random line from the sheet's "quips" tab (column A, "quip" header optional).
   async function showQuip() {
     const el = document.getElementById("quip");
     if (!el) return;
@@ -374,6 +380,16 @@
     document.body.dataset.ready = "1";
   }
 
+  // Footer rig: inline SVG, so every cone thumps on the same beat.
+  async function showRig() {
+    const el = document.querySelector(".rig");
+    if (!el) return;
+    try {
+      const res = await fetch("assets/rig.html");
+      if (res.ok) el.innerHTML = await res.text();
+    } catch (err) { /* decoration only */ }
+  }
+
   function fillContact() {
     document.querySelectorAll("[data-email]").forEach((a) => {
       a.href = `mailto:${cfg.contactEmail}`;
@@ -398,8 +414,9 @@
   fillContact();
   clock();
   showQuip();
-  if (page === "shop") { renderShop(); initAlerts(); }
-  if (page === "item") renderItem();
+  showRig();
+  if (page === "shop") { renderShop().catch(stockError); initAlerts(); }
+  if (page === "item") renderItem().catch(stockError);
   if (page === "wanted") renderWanted();
   if (page === "guestbook") renderGuestbook();
   if (page === "card") renderCard();
